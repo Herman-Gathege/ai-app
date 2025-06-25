@@ -1,3 +1,5 @@
+// src/lib/buffered-response.ts
+
 export function bufferedResponse(originalStream: ReadableStream<Uint8Array>) {
   const textDecoder = new TextDecoder();
   const chunkBuffer: Uint8Array[] = [];

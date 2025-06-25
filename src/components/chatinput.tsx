@@ -1,3 +1,4 @@
+// src/components/chatinput.tsx
 "use client";
 
 import {

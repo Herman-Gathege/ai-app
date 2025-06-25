@@ -1,3 +1,4 @@
+// src/app/handler/[...stack]/page.tsx
 import { stackServerApp } from "@/auth/stack-auth";
 import { StackHandler } from "@stackframe/stack";
 

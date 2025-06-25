@@ -1,3 +1,6 @@
+// src/db/schema.ts
+// This file defines the database schema using Drizzle ORM for a Next.js application.
+// It includes tables for apps, app users, messages, app deployments, and users.
 import {
   pgTable,
   text,

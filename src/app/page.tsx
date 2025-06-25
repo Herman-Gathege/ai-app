@@ -1,3 +1,4 @@
+// src/app/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -106,7 +107,12 @@ export default function Home() {
   const handleSubmit = async () => {
     setIsLoading(true);
     router.push(
-      `/app/new?message=${encodeURIComponent(prompt)}&baseId=${
+      // changed the line from `/app/new?message=${prompt}` to
+      // `/app/new?unsentMessage=${encodeURIComponent(prompt)}`
+      // to ensure the prompt is properly encoded for the URL
+
+      
+      `/app/new?unsentMessage=${encodeURIComponent(prompt)}&baseId=${
         {
           next: "nextjs-dkjfgdf",
           vite: "vite-skdjfls",

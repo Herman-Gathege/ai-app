@@ -1,3 +1,4 @@
+// src/components/chat.tsx
 "use client";
 
 import { useChat } from "@ai-sdk/react";
@@ -31,10 +32,22 @@ export default function Chat(props: {
         "Adorable-App-Id": props.appId,
       },
       api: "/api/chat",
+      // experimental_prepareRequestBody: (request) => {
+      //   const lastMessage = request.messages.at(-1) ?? null;
+      //   return {
+      //     message: lastMessage,
+      //     threadId: props.appId,
+      //     resourceId: props.appId,
+      //   };
+      // },
       experimental_prepareRequestBody: (request) => {
-        const lastMessage = request.messages.at(-1) ?? null;
+        const lastMessage = request.messages.at(-1);
+        console.log("📤 Sending lastMessage:", lastMessage);
         return {
-          message: lastMessage,
+          message: {
+            role: lastMessage?.role || "user",
+            content: lastMessage?.content || "",
+          },
           threadId: props.appId,
           resourceId: props.appId,
         };
@@ -107,7 +120,7 @@ function MessageBody({ message }: { message: Message }) {
   if (message.role === "user") {
     return (
       <div className="flex justify-end py-1 mb-4">
-        <div className="bg-neutral-200 dark:bg-neutral-700 rounded-xl px-4 py-1 max-w-[80%] ml-auto">
+        <div className="bg-neutral-200 dark:bg-neutral-700 rounded-xl px-4 py-1 max-w-[80%] ml-auto ">
           {message.content}
         </div>
       </div>

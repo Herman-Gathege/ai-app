@@ -1,3 +1,4 @@
+// src/app/app/[id]/page.tsx
 "use server";
 
 import { getApp } from "@/actions/get-app";
@@ -52,9 +53,13 @@ export default async function AppPage({
   const app = await getApp(id);
 
   const { uiMessages } = await memory.query({
+    
     threadId: id,
     resourceId: id,
+    
   });
+  console.log("🧠 memory query returned:", uiMessages);
+
 
   const { codeServerUrl } = await freestyle.requestDevServer({
     repoId: app?.info.gitRepo,

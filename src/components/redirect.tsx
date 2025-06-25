@@ -1,3 +1,4 @@
+// src/components/redirect.tsx
 "use client";
 
 import { createApp } from "@/actions/create-app";

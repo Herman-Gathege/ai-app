@@ -1,3 +1,5 @@
+// src/mastra/agents/builder.ts
+// This file defines the BuilderAgent for the Mastra framework, which is used to manage tasks
 import { SYSTEM_MESSAGE } from "@/lib/system";
 import { openRouterClaude } from "@/lib/openrouter";
 import { Agent } from "@mastra/core/agent";

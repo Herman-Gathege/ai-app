@@ -1,8 +1,9 @@
 import { db } from "@/lib/db";
 import { usersTable } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
-import { subDays, subMonths, isBefore } from "date-fns"; // 🗓️ useful for time comparisons
+import { eq, sql, and } from "drizzle-orm"; // ✅ added `and`
+import { subDays, subMonths, isBefore } from "date-fns"; // 🗓️ for date checks
 
+// 🚦 Main function used in /api/chat to check + deduct credit safely
 export async function checkAndConsumeCredit(userId: string) {
   const [user] = await db
     .select()
@@ -20,12 +21,12 @@ export async function checkAndConsumeCredit(userId: string) {
 
   switch (user.plan) {
     case "free":
-      shouldReset = isBefore(lastReset, subDays(now, 1));
+      shouldReset = isBefore(lastReset, subDays(now, 1)); // daily reset
       creditLimit = 5;
       break;
     case "pro":
     case "team":
-      shouldReset = isBefore(lastReset, subMonths(now, 1));
+      shouldReset = isBefore(lastReset, subMonths(now, 1)); // monthly reset
       creditLimit = 100;
       break;
     default:
@@ -41,7 +42,8 @@ export async function checkAndConsumeCredit(userId: string) {
         lastCreditReset: now,
       })
       .where(eq(usersTable.id, userId));
-    user.creditsRemaining = creditLimit; // Update local variable to continue
+
+    user.creditsRemaining = creditLimit; // Update local cache
   }
 
   if (user.creditsRemaining <= 0) {
@@ -54,3 +56,19 @@ export async function checkAndConsumeCredit(userId: string) {
     .set({ creditsRemaining: sql`${usersTable.creditsRemaining} - 1` })
     .where(eq(usersTable.id, userId));
 }
+
+// 🧪 Optional helper: attempts safe atomic decrement if user has credits
+export async function decrementUserCredits(userId: string): Promise<boolean> {
+  const result = await db
+    .update(usersTable)
+    .set({ creditsRemaining: sql`${usersTable.creditsRemaining} - 1` })
+    .where(
+      and(
+        eq(usersTable.id, userId),
+        sql`${usersTable.creditsRemaining} > 0`
+      )
+    );
+
+  return (result.rowCount ?? 0) > 0; // ✅ Type-safe check
+}
+

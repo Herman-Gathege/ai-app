@@ -1,3 +1,4 @@
+// src/lib/openrouter.ts
 import { OpenAI } from "openai";
 
 // Create OpenRouter client

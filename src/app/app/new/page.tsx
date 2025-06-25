@@ -1,3 +1,4 @@
+// src/app/app/new/page.tsx
 import { createApp } from "@/actions/create-app";
 import { redirect } from "next/navigation";
 import "@/components/loader.css";

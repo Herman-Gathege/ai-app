@@ -1,3 +1,5 @@
+// src/auth/stack-auth.ts
+// This file handles user authentication and metadata management using StackFrame's StackServerApp.
 import "server-only";
 
 import { StackServerApp } from "@stackframe/stack";

@@ -1,3 +1,4 @@
+// src/lib/streams.ts
 declare global {
   // eslint-disable-next-line no-var
   var streams: Record<string, { readable: ReadableStream; prompt?: string }>;
