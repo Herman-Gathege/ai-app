@@ -66,6 +66,8 @@ export default function Chat(props: {
     if (unsentMessage) {
       window.history.replaceState(undefined, "", url.toString());
 
+      console.log("📥 Appending unsent message to chat:", unsentMessage);
+
       append({
         content: unsentMessage,
         role: "user",

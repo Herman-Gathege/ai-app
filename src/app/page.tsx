@@ -106,6 +106,8 @@ export default function Home() {
 
   const handleSubmit = async () => {
     setIsLoading(true);
+    console.log("🔍 Prompt being submitted:", prompt);
+
     router.push(
       // changed the line from `/app/new?message=${prompt}` to
       // `/app/new?unsentMessage=${encodeURIComponent(prompt)}`
@@ -120,6 +122,7 @@ export default function Home() {
         }[framework]
       }`
     );
+    
   };
 
   return (
