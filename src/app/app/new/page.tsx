@@ -1,50 +1,19 @@
-// // src/app/app/new/page.tsx
-// import { createApp } from "@/actions/create-app";
-// import { redirect } from "next/navigation";
-// import "@/components/loader.css";
-// import { getUser } from "@/auth/stack-auth";
-
-// export default async function AppPage({
-//   searchParams,
-// }: {
-//   searchParams: Promise<{ [key: string]: string | string[] }>;
-//   params: Promise<{ id: string }>;
-// }) {
-//   const user = await getUser().catch(() => undefined);
-//   const search = await searchParams;
-
-
-//   if (!user) {
-//     redirect(
-//       `/handler/sign-in?after_auth_return_to=${
-//         encodeURIComponent("/app/new?") + new URLSearchParams(search).toString()
-//       }`
-//     );
-//   }
-
-//   const { id } = await createApp({
-//     initialMessage: decodeURIComponent(search.message),
-//     baseId: search.baseId as string,
-//   });
-
-//   redirect(`/app/${id}?unsentMessage=${search.message}`);
-// }
-
 // src/app/app/new/page.tsx
 import { createApp } from "@/actions/create-app";
 import { redirect } from "next/navigation";
 import "@/components/loader.css";
 import { getUser } from "@/auth/stack-auth";
 
-export default async function AppNewPage({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined };
+export default async function AppNewPage(props: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const searchParams = await props.searchParams;
+  console.log("🔍 Search params in /app/new:", searchParams);
+
   const user = await getUser().catch(() => undefined);
 
-  const unsentMessageRaw = searchParams.unsentMessage;
-  const baseId = searchParams.baseId;
+  const unsentMessageRaw = searchParams?.unsentMessage;
+  const baseId = searchParams?.baseId;
 
   const unsentMessage =
     typeof unsentMessageRaw === "string" ? unsentMessageRaw : "";

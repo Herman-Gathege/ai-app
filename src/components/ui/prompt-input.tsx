@@ -1,3 +1,4 @@
+// src/components/ui/prompt-input.tsx
 "use client";
 
 import { Textarea } from "@/components/ui/textarea";

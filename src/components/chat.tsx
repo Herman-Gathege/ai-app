@@ -72,6 +72,7 @@ export default function Chat(props: {
         content: unsentMessage,
         role: "user",
       });
+      console.log("🧠 Messages state updated:", messages);
     }
   });
 
@@ -119,12 +120,48 @@ export default function Chat(props: {
 }
 
 // function MessageBody({ message }: { message: Message }) {
-//   if (message.role === "user") {
+//   // if (message.role === "user") {
+//   //   return (
+//   //     <div className="flex justify-end py-1 mb-4">
+//   //       <div className="bg-neutral-200 dark:bg-neutral-700 rounded-xl px-4 py-1 max-w-[80%] ml-auto">
+//   //         {typeof message.content === "string"
+//   //           ? message.content
+//   //           : message.content?.text || "Unknown content"}
+//   //       </div>
+//   //     </div>
+//   //   );
+//   // }
+//   if (message.role === "assistant" && typeof message.content === "string") {
 //     return (
-//       <div className="flex justify-end py-1 mb-4">
-//         <div className="bg-neutral-200 dark:bg-neutral-700 rounded-xl px-4 py-1 max-w-[80%] ml-auto ">
+//       <div className="mb-4">
+//         <Markdown className="prose prose-sm dark:prose-invert max-w-none">
 //           {message.content}
-//         </div>
+//         </Markdown>
+//       </div>
+//     );
+//   }
+
+//   if (typeof message.content === "string" && message.content.trim() !== "") {
+//     return (
+//       <div className="mb-4">
+//         <Markdown className="prose prose-sm dark:prose-invert max-w-none">
+//           {message.content}
+//         </Markdown>
+//       </div>
+//     );
+//   }
+
+//   // ✅ New: if content is an object like { type: "text", text: "..." }
+//   if (
+//     typeof message.content === "object" &&
+//     "text" in message.content &&
+//     typeof message.content.text === "string"
+//   ) {
+//     return (
+//       <div className="mb-4">
+//         <Markdown className="prose prose-sm dark:prose-invert max-w-none">
+//           {message.content.text}
+//         </Markdown>
 //       </div>
 //     );
 //   }
@@ -144,47 +181,12 @@ export default function Chat(props: {
 //           }
 
 //           if (part.type === "tool-invocation") {
-//             // if (
-//             //   part.toolInvocation.state === "result" &&
-//             //   part.toolInvocation.result.isError
-//             // ) {
-//             //   return (
-//             //     <div
-//             //       key={index}
-//             //       className="border-red-500 border text-sm text-red-800 rounded bg-red-100 px-2 py-1 mt-2 mb-4"
-//             //     >
-//             //       {part.toolInvocation.result?.content?.map(
-//             //         (content: { type: "text"; text: string }, i: number) => (
-//             //           <div key={i}>{content.text}</div>
-//             //         )
-//             //       )}
-//             //       {/* Unexpectedly failed while using tool{" "}
-//             //       {part.toolInvocation.toolName}. Please try again. again. */}
-//             //     </div>
-//             //   );
-//             // }
-
-//             // if (
-//             //   message.parts!.length - 1 == index &&
-//             //   part.toolInvocation.state !== "result"
-//             // ) {
 //             return (
 //               <ToolMessage key={index} toolInvocation={part.toolInvocation} />
 //             );
-//             // } else {
-//             //   return undefined;
-//             // }
 //           }
 //         })}
 //       </div>
-//     );
-//   }
-
-//   if (message.content) {
-//     return (
-//       <Markdown className="prose prose-sm dark:prose-invert max-w-none">
-//         {message.content}
-//       </Markdown>
 //     );
 //   }
 
@@ -196,18 +198,6 @@ export default function Chat(props: {
 // }
 
 function MessageBody({ message }: { message: Message }) {
-  if (message.role === "user") {
-    return (
-      <div className="flex justify-end py-1 mb-4">
-        <div className="bg-neutral-200 dark:bg-neutral-700 rounded-xl px-4 py-1 max-w-[80%] ml-auto">
-          {typeof message.content === "string"
-            ? message.content
-            : message.content?.text || "Unknown content"}
-        </div>
-      </div>
-    );
-  }
-
   if (typeof message.content === "string" && message.content.trim() !== "") {
     return (
       <div className="mb-4">
@@ -218,48 +208,10 @@ function MessageBody({ message }: { message: Message }) {
     );
   }
 
-  // ✅ New: if content is an object like { type: "text", text: "..." }
-  if (
-    typeof message.content === "object" &&
-    "text" in message.content &&
-    typeof message.content.text === "string"
-  ) {
-    return (
-      <div className="mb-4">
-        <Markdown className="prose prose-sm dark:prose-invert max-w-none">
-          {message.content.text}
-        </Markdown>
-      </div>
-    );
-  }
-
-  if (Array.isArray(message.parts) && message.parts.length !== 0) {
-    return (
-      <div className="mb-4">
-        {message.parts.map((part, index) => {
-          if (part.type === "text") {
-            return (
-              <div key={index} className="mb-4">
-                <Markdown className="prose prose-sm dark:prose-invert max-w-none">
-                  {part.text}
-                </Markdown>
-              </div>
-            );
-          }
-
-          if (part.type === "tool-invocation") {
-            return (
-              <ToolMessage key={index} toolInvocation={part.toolInvocation} />
-            );
-          }
-        })}
-      </div>
-    );
-  }
-
   return (
     <div>
       <p className="text-gray-500">Something went wrong</p>
     </div>
   );
 }
+

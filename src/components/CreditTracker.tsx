@@ -1,3 +1,4 @@
+// src/components/CreditTracker.tsx
 import { useEffect, useRef, useState } from "react";
 
 export default function CreditTracker() {

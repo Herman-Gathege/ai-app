@@ -1,3 +1,5 @@
+// src/app/api/chat/route.ts
+
 import { getApp } from "@/actions/get-app";
 import { freestyle } from "@/lib/freestyle";
 import { getAppIdFromHeaders } from "@/lib/utils";
@@ -10,6 +12,8 @@ import { getUser } from "@/auth/stack-auth";
 import { openRouterClaude } from "@/lib/openrouter";
 import { EventEmitter } from "events";
 import { AITextContent, streamText } from "ai";
+// import { streams } from "@/lib/streams"; // ✅ add this if missing
+import { NextResponse } from "next/server";
 
 // "fix" mastra mcp bug
 EventEmitter.defaultMaxListeners = 1000;
@@ -35,39 +39,26 @@ function normalizeMessageContent(content: CoreMessage["content"]): string {
   return "";
 }
 
-// ✅ Async generator to stream Claude response
-function runAgentStream(finalPrompt: string, userId: string): AsyncIterable<AITextContent> {
+function runAgentStream(
+  finalPrompt: string,
+  userId: string
+): AsyncIterable<string> {
   return (async function* () {
     try {
-      console.log("Calling Claude with prompt:", finalPrompt);
+      console.log("Simulating AI response for prompt:", finalPrompt);
 
-      const result = await openRouterClaude().generateContent(finalPrompt, userId);
+      await new Promise((resolve) => setTimeout(resolve, 1500)); // simulate delay
 
-      console.log("Claude responded:", result);
-
-      yield {
-        type: "text",
-        text: result.content,
-      };
-
-      const didDeduct = await decrementUserCredits(userId);
-      if (!didDeduct) {
-        console.warn("⚠️ Credit deduction failed — user may be out of credits.");
-      } else {
-        console.log("✅ 1 credit deducted for user:", userId);
+      const simulatedText = `🧪 Simulated response: Based on your prompt "${finalPrompt}", here’s a placeholder response.`;
+      for (const word of simulatedText.split(" ")) {
+        yield word + " ";
+        await new Promise((res) => setTimeout(res, 80)); // simulate streaming
       }
 
-      console.log("✅ Stream finished.");
+      console.log("✅ Simulated stream finished.");
     } catch (error: any) {
-      console.error("❌ Error in Claude or credit logic:", error);
-      const fallback =
-        error?.message?.includes("No credits")
-          ? "You're out of credits. Please upgrade your plan."
-          : "Something went wrong. Please try again.";
-      yield {
-        type: "text",
-        text: fallback,
-      };
+      console.error("❌ Error during simulated stream:", error);
+      yield "Something went wrong in the simulation.";
     }
 
     console.log("User ID:", userId);
@@ -76,94 +67,87 @@ function runAgentStream(finalPrompt: string, userId: string): AsyncIterable<AITe
 }
 
 export async function POST(req: Request) {
-  const appId = getAppIdFromHeaders(req);
+  try {
+    const appId = getAppIdFromHeaders(req);
 
-  if (!appId) {
-    return new Response("Missing App Id header", { status: 400 });
-  }
+    if (!appId) {
+      return new NextResponse("Missing App Id header", { status: 400 });
+    }
 
-  const app = await getApp(appId);
-  if (!app) {
-    return new Response("App not found", { status: 404 });
-  }
+    const app = await getApp(appId);
+    if (!app) {
+      return new NextResponse("App not found", { status: 404 });
+    }
 
-  const existingStream = await getStream(appId);
-  if (existingStream) {
-    const [stream1, stream2] = streams[appId].readable.tee();
-    streams[appId] = { readable: stream2, prompt: streams[appId].prompt };
-    return new Response(stream1, {
+    const { mcpEphemeralUrl } = await freestyle.requestDevServer({
+      repoId: app.info.gitRepo,
+      baseId: app.info.baseId,
+    });
+
+    const { message }: { message: CoreMessage } = await req.json();
+    const prompt = normalizeMessageContent(message.content);
+
+    if (!prompt || prompt.trim() === "") {
+      return new NextResponse("Prompt cannot be empty", { status: 400 });
+    }
+
+    const { userId } = await getUser();
+
+    const stream = runAgentStream(prompt, userId);
+    const stream1 = stream[Symbol.asyncIterator]();
+
+    const streamWrapper = new ReadableStream({
+      async pull(controller) {
+        const { value, done } = await stream1.next();
+        if (done) {
+          controller.close();
+        } else if (typeof value === "string") {
+          controller.enqueue(new TextEncoder().encode(value));
+        }
+      },
+    });
+
+    const [tee1, tee2] = streamWrapper.tee();
+    await setStream(appId, tee2, prompt);
+
+    console.log("Saving stream for app:", appId, "with prompt:", prompt);
+
+    // const result = streamText({
+    //   content: tee1,
+    //   model: "claude-3-opus",
+    //   prompt,
+    // });
+
+    return new NextResponse(tee1, {
+      status: 200,
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
       },
     });
+  } catch (error) {
+    console.error("❌ POST /api/chat failed:", error);
+
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
-
-  const { mcpEphemeralUrl } = await freestyle.requestDevServer({
-    repoId: app.info.gitRepo,
-    baseId: app.info.baseId,
-  });
-
-  const { message }: { message: CoreMessage } = await req.json();
-
-  const mcp = new MCPClient({
-    id: crypto.randomUUID(),
-    servers: {
-      dev_server: {
-        url: new URL(mcpEphemeralUrl),
-      },
-    },
-  });
-
-  const toolsets = await mcp.getToolsets();
-
-  const prompt = normalizeMessageContent(message.content);
-  if (!prompt || prompt.trim() === "") {
-    return new Response("Prompt cannot be empty", { status: 400 });
-  }
-
-  const { userId } = await getUser();
-
-  const stream = runAgentStream(prompt, userId);
-  const stream1 = stream[Symbol.asyncIterator]();
-
-  const streamWrapper = new ReadableStream({
-    async pull(controller) {
-      const { value, done } = await stream1.next();
-      if (done) {
-        controller.close();
-      } else if (value?.type === "text") {
-        controller.enqueue(new TextEncoder().encode(value.text));
-      }
-    },
-  });
-
-  const [tee1, tee2] = streamWrapper.tee();
-  await setStream(appId, tee2, prompt);
-
-  console.log("Saving stream for app:", appId, "with prompt:", prompt);
-
-  return streamText({
-    content: tee1,
-    model: "claude-3-opus", // you can change this label; it's required
-    prompt,
-  });
-
-   
 }
 
 export async function GET(req: Request) {
   const appId = getAppIdFromHeaders(req);
   if (!appId) {
-    return new Response("Missing App Id header", { status: 400 });
+    return new NextResponse("Missing App Id header", { status: 400 });
   }
 
-  return new Response(
-    JSON.stringify({
-      stream: streams[appId] && {
-        prompt: streams[appId].prompt,
-      },
-    })
-  );
+  const streamData = await getStream(appId);
+
+  if (!streamData) {
+    return new NextResponse("No stream found for this app", { status: 404 });
+  }
+
+  return NextResponse.json({
+    stream: {
+      prompt: streamData.prompt,
+    },
+  });
 }
