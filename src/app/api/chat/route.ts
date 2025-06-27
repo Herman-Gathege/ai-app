@@ -11,9 +11,10 @@ import { decrementUserCredits } from "@/lib/credits"; // ✅ Add this line
 import { getUser } from "@/auth/stack-auth";
 import { openRouterClaude } from "@/lib/openrouter";
 import { EventEmitter } from "events";
-import { AITextContent, streamText } from "ai";
+// import { AITextContent, streamText } from "ai";
 // import { streams } from "@/lib/streams"; // ✅ add this if missing
 import { NextResponse } from "next/server";
+import { checkAndConsumeCredit } from "@/lib/credits"; // ✅ Add this line
 
 // "fix" mastra mcp bug
 EventEmitter.defaultMaxListeners = 1000;
@@ -92,6 +93,7 @@ export async function POST(req: Request) {
     }
 
     const { userId } = await getUser();
+    await checkAndConsumeCredit(userId);
 
     const stream = runAgentStream(prompt, userId);
     const stream1 = stream[Symbol.asyncIterator]();
@@ -129,7 +131,33 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("❌ POST /api/chat failed:", error);
 
-    return new NextResponse("Internal Server Error", { status: 500 });
+    // Handle "no credits" error separately
+    if (
+      error instanceof Error &&
+      error.message.includes("No credits remaining")
+    ) {
+      return new NextResponse(
+        JSON.stringify({
+          error: "No credits remaining. Please upgrade your plan.",
+          code: "NO_CREDITS",
+        }),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Default error response for everything else
+    return new NextResponse(
+      JSON.stringify({
+        error: "Internal Server Error. Please try again.",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }
 

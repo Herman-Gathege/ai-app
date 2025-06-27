@@ -9,6 +9,8 @@ import { ChatContainer } from "./ui/chat-container";
 import { Message } from "ai";
 import { ToolMessage } from "./tools";
 
+import { toast } from "sonner";
+
 export default function Chat(props: {
   appId: string;
   initialMessages: Message[];
@@ -16,6 +18,7 @@ export default function Chat(props: {
   topBar?: React.ReactNode;
   unsentMessage?: string;
 }) {
+  // const { toast } = useToast();
   const { messages, handleSubmit, input, handleInputChange, status, append } =
     useChat({
       initialMessages: props.initialMessages,
@@ -23,7 +26,6 @@ export default function Chat(props: {
         if (typeof crypto?.randomUUID === "function") {
           return "cs-" + crypto.randomUUID();
         }
-        // fallback UUID polyfill for older environments
         return "cs-" + Math.random().toString(36).substring(2) + Date.now();
       },
 
@@ -32,14 +34,7 @@ export default function Chat(props: {
         "Adorable-App-Id": props.appId,
       },
       api: "/api/chat",
-      // experimental_prepareRequestBody: (request) => {
-      //   const lastMessage = request.messages.at(-1) ?? null;
-      //   return {
-      //     message: lastMessage,
-      //     threadId: props.appId,
-      //     resourceId: props.appId,
-      //   };
-      // },
+
       experimental_prepareRequestBody: (request) => {
         const lastMessage = request.messages.at(-1);
         console.log("📤 Sending lastMessage:", lastMessage);
@@ -51,6 +46,23 @@ export default function Chat(props: {
           threadId: props.appId,
           resourceId: props.appId,
         };
+      },
+
+      // 🔥 This will trigger if backend returns an error (like 500 or 403)
+      onError: async (error) => {
+        const err = error as { response?: Response }; // 👈 assert it has `.response`
+
+        try {
+          const parsed = await err.response?.json();
+          if (parsed?.code === "NO_CREDITS") {
+            toast.error("⚠️ You're out of credits. Please upgrade your plan.");
+          } else {
+            toast.error(parsed?.error || "Something went wrong.");
+          }
+        } catch (err) {
+          toast.error("Unexpected error. Please try again.");
+          console.error("Parsing error response failed:", err);
+        }
       },
     });
 
@@ -214,4 +226,3 @@ function MessageBody({ message }: { message: Message }) {
     </div>
   );
 }
-
