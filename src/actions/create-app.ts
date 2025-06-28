@@ -15,6 +15,9 @@ export async function createApp({
   baseId: string;
 }) {
   const user = await getUser();
+  if (!user) {
+    throw new Error("❌ User not authenticated");
+  }
 
   console.time("create git repo");
   const repo = await freestyle
@@ -36,6 +39,7 @@ export async function createApp({
     })
     .catch((e) => {
       console.error("Error creating git repository:", JSON.stringify(e));
+      console.timeEnd("create git repo");
       throw new Error("Failed to create git repository");
     });
 

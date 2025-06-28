@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+// import { StackProvider, StackTheme } from "@stackframe/stack";
+// import { stackServerApp } from "../stack";
 import { StackProvider, StackTheme } from "@stackframe/stack";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -42,7 +44,7 @@ export default function RootLayout({
         className={cn(
           `${geistSans.variable} ${geistMono.variable} antialiased`
         )}
-      >
+      ><StackProvider app={stackServerApp}><StackTheme>
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
@@ -58,7 +60,7 @@ export default function RootLayout({
         </ThemeProvider>
         {/* <p className="text-xs text-red-500 text-center">Layout loaded ✅</p> */}
 
-      </body>
+      </StackTheme></StackProvider></body>
     </html>
   );
 }
