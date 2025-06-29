@@ -1,3 +1,4 @@
+// src/components/StackWrapper.tsx
 'use client';
 
 import { StackProvider, StackTheme } from "@stackframe/stack";

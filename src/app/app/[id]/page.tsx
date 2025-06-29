@@ -6,7 +6,7 @@ import AppWrapper from "../../../components/app-wrapper";
 import { unstable_ViewTransition as ViewTransition } from "react";
 import { freestyle } from "@/lib/freestyle";
 import { db } from "@/lib/db";
-import { appUsers } from "@/db/schema";
+import { appUsers, messagesTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/auth/stack-auth";
 import { memory } from "@/mastra/agents/builder";
@@ -37,9 +37,11 @@ export default async function AppPage(props: {
   // 🧠 If no message but a stream exists, use that as fallback
   const stream = await getStream(id);
   if ((!unsentMessage || unsentMessage === "undefined") && stream) {
-  return redirect(`/app/${id}?unsentMessage=${encodeURIComponent(stream.prompt)}`, RedirectType.replace);
-}
-
+    return redirect(
+      `/app/${id}?unsentMessage=${encodeURIComponent(stream.prompt)}`,
+      RedirectType.replace
+    );
+  }
 
   const user = await getUser();
 
@@ -61,10 +63,12 @@ export default async function AppPage(props: {
 
   const app = await getApp(id);
 
-  const { uiMessages } = await memory.query({
-    threadId: id,
-    resourceId: id,
-  });
+  const messages = await db
+    .select()
+    .from(messagesTable)
+    .where(eq(messagesTable.appId, id));
+
+  const uiMessages = messages.map((msg) => msg.message);
 
   console.log("🧠 memory query returned:", uiMessages);
 

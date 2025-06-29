@@ -64,6 +64,31 @@ export default function Chat(props: {
           console.error("Parsing error response failed:", err);
         }
       },
+
+      onFinish: async (assistantMessage: Message) => {
+        const userMessage = messages.at(-2);
+
+        if (!userMessage || !assistantMessage) return;
+
+        try {
+          const res = await fetch(`/api/messages/${props.appId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: [userMessage, assistantMessage],
+            }),
+          });
+
+          if (!res.ok) {
+            toast.error("❌ Failed to save messages");
+          } else {
+            toast.success("💾 Chat saved");
+          }
+        } catch (err) {
+          console.error("❌ Error saving messages:", err);
+          toast.error("Unexpected error saving chat");
+        }
+      },
     });
 
   useEffect(() => {
@@ -81,9 +106,17 @@ export default function Chat(props: {
       console.log("📥 Appending unsent message to chat:", unsentMessage);
 
       append({
-        content: unsentMessage,
+        content: ` user prompt: "${unsentMessage}"`,
         role: "user",
       });
+
+      setTimeout(() => {
+        append({
+          content: ` Of course! Here's a short poem based on: "${unsentMessage}"`,
+          role: "assistant",
+        });
+      }, 800); // 0.8 second delay
+
       console.log("🧠 Messages state updated:", messages);
     }
   });
@@ -130,84 +163,6 @@ export default function Chat(props: {
     </div>
   );
 }
-
-// function MessageBody({ message }: { message: Message }) {
-//   // if (message.role === "user") {
-//   //   return (
-//   //     <div className="flex justify-end py-1 mb-4">
-//   //       <div className="bg-neutral-200 dark:bg-neutral-700 rounded-xl px-4 py-1 max-w-[80%] ml-auto">
-//   //         {typeof message.content === "string"
-//   //           ? message.content
-//   //           : message.content?.text || "Unknown content"}
-//   //       </div>
-//   //     </div>
-//   //   );
-//   // }
-//   if (message.role === "assistant" && typeof message.content === "string") {
-//     return (
-//       <div className="mb-4">
-//         <Markdown className="prose prose-sm dark:prose-invert max-w-none">
-//           {message.content}
-//         </Markdown>
-//       </div>
-//     );
-//   }
-
-//   if (typeof message.content === "string" && message.content.trim() !== "") {
-//     return (
-//       <div className="mb-4">
-//         <Markdown className="prose prose-sm dark:prose-invert max-w-none">
-//           {message.content}
-//         </Markdown>
-//       </div>
-//     );
-//   }
-
-//   // ✅ New: if content is an object like { type: "text", text: "..." }
-//   if (
-//     typeof message.content === "object" &&
-//     "text" in message.content &&
-//     typeof message.content.text === "string"
-//   ) {
-//     return (
-//       <div className="mb-4">
-//         <Markdown className="prose prose-sm dark:prose-invert max-w-none">
-//           {message.content.text}
-//         </Markdown>
-//       </div>
-//     );
-//   }
-
-//   if (Array.isArray(message.parts) && message.parts.length !== 0) {
-//     return (
-//       <div className="mb-4">
-//         {message.parts.map((part, index) => {
-//           if (part.type === "text") {
-//             return (
-//               <div key={index} className="mb-4">
-//                 <Markdown className="prose prose-sm dark:prose-invert max-w-none">
-//                   {part.text}
-//                 </Markdown>
-//               </div>
-//             );
-//           }
-
-//           if (part.type === "tool-invocation") {
-//             return (
-//               <ToolMessage key={index} toolInvocation={part.toolInvocation} />
-//             );
-//           }
-//         })}
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <div>
-//       <p className="text-gray-500">Something went wrong</p>
-//     </div>
-//   );
-// }
 
 function MessageBody({ message }: { message: Message }) {
   if (typeof message.content === "string" && message.content.trim() !== "") {
