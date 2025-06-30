@@ -48,6 +48,13 @@ export default function Chat(props: {
         };
       },
 
+      onResponse: (res) => {
+        console.log("📡 Server stream response:", res);
+      },
+      // onFinish: (msg) => {
+      //   console.log("✅ Assistant response finished:", msg);
+      // },
+
       // 🔥 This will trigger if backend returns an error (like 500 or 403)
       onError: async (error) => {
         const err = error as { response?: Response }; // 👈 assert it has `.response`
@@ -105,19 +112,18 @@ export default function Chat(props: {
 
       console.log("📥 Appending unsent message to chat:", unsentMessage);
 
-      append({
-        content: ` user prompt: "${unsentMessage}"`,
-        role: "user",
-      });
+      // Just append the user prompt — the AI response will come from the backend
+      append(
+        {
+          content: unsentMessage,
+          role: "user",
+        },
+        {
+          options: { send: true }, // ✅ triggers /api/chat
+        }
+      );
 
-      setTimeout(() => {
-        append({
-          content: ` Of course! Here's a short poem based on: "${unsentMessage}"`,
-          role: "assistant",
-        });
-      }, 800); // 0.8 second delay
-
-      console.log("🧠 Messages state updated:", messages);
+      // No setTimeout or assistant response here!
     }
   });
 
@@ -174,6 +180,8 @@ function MessageBody({ message }: { message: Message }) {
       </div>
     );
   }
+  console.log("📝 Message received:", message);
+
 
   return (
     <div>

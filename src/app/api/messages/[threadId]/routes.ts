@@ -1,8 +1,9 @@
+// // src/app/api/messages/[threadId]/routes.ts
 import { db } from "@/src/db"; // adjust if your DB instance is elsewhere
 import { messagesTable } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { Message } from "ai"; // Adjust import based on your Message type definition
+import { Message } from "ai"; 
 
 export async function GET(
   req: NextRequest,

@@ -1,3 +1,4 @@
+// // src/lib/credits.ts
 import { db } from "@/lib/db";
 import { usersTable } from "@/db/schema";
 import { eq, sql, and } from "drizzle-orm"; // ✅ added `and`

@@ -3,7 +3,7 @@
 
 import { getApp } from "@/actions/get-app";
 import AppWrapper from "../../../components/app-wrapper";
-import { unstable_ViewTransition as ViewTransition } from "react";
+// import { unstable_ViewTransition as ViewTransition } from "react";
 import { freestyle } from "@/lib/freestyle";
 import { db } from "@/lib/db";
 import { appUsers, messagesTable } from "@/db/schema";
@@ -72,27 +72,56 @@ export default async function AppPage(props: {
 
   console.log("🧠 memory query returned:", uiMessages);
 
-  const { codeServerUrl } = await freestyle.requestDevServer({
-    repoId: app?.info.gitRepo,
-    baseId: app?.info.baseId,
-  });
+  // const { codeServerUrl } = await freestyle.requestDevServer({
+  //   repoId: app?.info.gitRepo,
+  //   baseId: app?.info.baseId,
+  // });
+  let codeServerUrl: string | undefined;
+
+  try {
+    console.log("🚀 Requesting dev server...");
+    console.log("📦 repoId:", app?.info.gitRepo);
+    console.log("🧬 baseId:", app?.info.baseId);
+
+    const devServerResult = await freestyle.requestDevServer({
+      repoId: app?.info.gitRepo,
+      baseId: app?.info.baseId,
+    });
+
+    console.log("✅ Dev server result:", devServerResult);
+
+    codeServerUrl = devServerResult?.codeServerUrl;
+
+    if (!codeServerUrl) {
+      throw new Error("Missing codeServerUrl in devServerResult");
+    }
+  } catch (err) {
+    console.error("❌ Failed to request dev server:", err);
+    return (
+      <div className="p-4 text-red-500">
+        ❌ Could not start dev server. Please check Freestyle credentials or
+        logs.
+      </div>
+    );
+  }
 
   console.log("requested dev server");
 
   const domain = app.info.previewDomain;
 
   return (
-    <ViewTransition>
-      <AppWrapper
-        baseId={app.info.baseId}
-        codeServerUrl={codeServerUrl}
-        appName={app.info.name}
-        initialMessages={uiMessages}
-        repo={app.info.gitRepo}
-        appId={app.info.id}
-        repoId={app.info.gitRepo}
-        domain={domain ?? undefined}
-      />
-    </ViewTransition>
-  );
+  <div>
+    <AppWrapper
+      baseId={app.info.baseId}
+      codeServerUrl={codeServerUrl}
+      appName={app.info.name}
+      initialMessages={uiMessages}
+      repo={app.info.gitRepo}
+      appId={app.info.id}
+      repoId={app.info.gitRepo}
+      domain={domain ?? undefined}
+    />
+  </div>
+);
+
 }

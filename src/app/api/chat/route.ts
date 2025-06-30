@@ -1,25 +1,20 @@
 // src/app/api/chat/route.ts
-
 import { getApp } from "@/actions/get-app";
 import { freestyle } from "@/lib/freestyle";
 import { getAppIdFromHeaders } from "@/lib/utils";
-import { MCPClient } from "@mastra/mcp";
-import { builderAgent } from "@/mastra/agents/builder";
-import { deleteStream, getStream, setStream } from "@/lib/streams";
 import { CoreMessage } from "@mastra/core";
-import { decrementUserCredits } from "@/lib/credits"; // ✅ Add this line
 import { getUser } from "@/auth/stack-auth";
+import { checkAndConsumeCredit } from "@/lib/credits";
+import { setStream, getStream } from "@/lib/streams";
 import { openRouterClaude } from "@/lib/openrouter";
+import { streamText } from "ai";
 import { EventEmitter } from "events";
-// import { AITextContent, streamText } from "ai";
-// import { streams } from "@/lib/streams"; // ✅ add this if missing
 import { NextResponse } from "next/server";
-import { checkAndConsumeCredit } from "@/lib/credits"; // ✅ Add this line
 
-// "fix" mastra mcp bug
+// ✅ Increase default event listener limit to avoid memory leak warnings
 EventEmitter.defaultMaxListeners = 1000;
 
-// ✅ Normalize any CoreMessage.content into a string
+// ✅ Normalize message content for consistent handling
 function normalizeMessageContent(content: CoreMessage["content"]): string {
   if (typeof content === "string") return content;
 
@@ -40,37 +35,10 @@ function normalizeMessageContent(content: CoreMessage["content"]): string {
   return "";
 }
 
-function runAgentStream(
-  finalPrompt: string,
-  userId: string
-): AsyncIterable<string> {
-  return (async function* () {
-    try {
-      console.log("Simulating AI response for prompt:", finalPrompt);
-
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // simulate delay
-
-      const simulatedText = `🧪 Simulated response: Based on your prompt "${finalPrompt}", here’s a placeholder response.`;
-      for (const word of simulatedText.split(" ")) {
-        yield word + " ";
-        await new Promise((res) => setTimeout(res, 80)); // simulate streaming
-      }
-
-      console.log("✅ Simulated stream finished.");
-    } catch (error: any) {
-      console.error("❌ Error during simulated stream:", error);
-      yield "Something went wrong in the simulation.";
-    }
-
-    console.log("User ID:", userId);
-    console.log("Prompt content:", finalPrompt);
-  })();
-}
-
+// ✅ POST: Handle prompt and stream Claude's response
 export async function POST(req: Request) {
   try {
     const appId = getAppIdFromHeaders(req);
-
     if (!appId) {
       return new NextResponse("Missing App Id header", { status: 400 });
     }
@@ -87,7 +55,6 @@ export async function POST(req: Request) {
 
     const { message }: { message: CoreMessage } = await req.json();
     const prompt = normalizeMessageContent(message.content);
-
     if (!prompt || prompt.trim() === "") {
       return new NextResponse("Prompt cannot be empty", { status: 400 });
     }
@@ -95,35 +62,55 @@ export async function POST(req: Request) {
     const { userId } = await getUser();
     await checkAndConsumeCredit(userId);
 
-    const stream = runAgentStream(prompt, userId);
-    const stream1 = stream[Symbol.asyncIterator]();
+    const claude = openRouterClaude();
 
-    const streamWrapper = new ReadableStream({
-      async pull(controller) {
-        const { value, done } = await stream1.next();
-        if (done) {
-          controller.close();
-        } else if (typeof value === "string") {
-          controller.enqueue(new TextEncoder().encode(value));
+
+    if (!claude || !claude.chat) {
+      console.error("❌ Claude model is not properly initialized.");
+      return new NextResponse(
+        JSON.stringify({
+          error: "Claude model is unavailable. Please try again later.",
+          code: "MODEL_INIT_ERROR",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
         }
+      );
+    }
+
+    const result = await streamText({
+      model: claude.chat,
+      messages: [{ role: "user", content: prompt }],
+      maxTokens: 1024,
+    });
+
+    const encodedStream = new ReadableStream({
+      async start(controller) {
+        const reader = result.baseStream.getReader();
+        const encoder = new TextEncoder();
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          console.log("📦 Stream chunk value:", value);
+
+          if (typeof value === "object" && value?.text) {
+            controller.enqueue(encoder.encode(value.text));
+          }
+        }
+
+        controller.close();
       },
     });
 
-    const [tee1, tee2] = streamWrapper.tee();
-    await setStream(appId, tee2, prompt);
+    await setStream(appId, result.baseStream, prompt);
 
-    console.log("Saving stream for app:", appId, "with prompt:", prompt);
-
-    // const result = streamText({
-    //   content: tee1,
-    //   model: "claude-3-opus",
-    //   prompt,
-    // });
-
-    return new NextResponse(tee1, {
+    return new Response(encodedStream, {
       status: 200,
       headers: {
-        "Content-Type": "text/event-stream",
+        "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
       },
@@ -131,7 +118,6 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("❌ POST /api/chat failed:", error);
 
-    // Handle "no credits" error separately
     if (
       error instanceof Error &&
       error.message.includes("No credits remaining")
@@ -148,7 +134,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Default error response for everything else
     return new NextResponse(
       JSON.stringify({
         error: "Internal Server Error. Please try again.",
@@ -161,6 +146,7 @@ export async function POST(req: Request) {
   }
 }
 
+// ✅ GET: Return recent stream for fallback or debugging
 export async function GET(req: Request) {
   const appId = getAppIdFromHeaders(req);
   if (!appId) {
@@ -168,7 +154,6 @@ export async function GET(req: Request) {
   }
 
   const streamData = await getStream(appId);
-
   if (!streamData) {
     return new NextResponse("No stream found for this app", { status: 404 });
   }

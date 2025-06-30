@@ -9,10 +9,13 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    viewTransition: true,
+    serverActions: {},
   },
   devIndicators: false,
-  productionBrowserSourceMaps: false,  
+  productionBrowserSourceMaps: false,
+  env: {
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+  },
 };
 
 export default nextConfig;

@@ -1,3 +1,4 @@
+// // src/auth/stack-client.ts
 'use client';
 
 import { StackClientApp } from "@stackframe/stack";

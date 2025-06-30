@@ -10,15 +10,23 @@ export async function requestDevServer({
   repoId: string;
   baseId: string;
 }) {
-  const { ephemeralUrl, devCommandRunning, installCommandRunning } =
-    await freestyle.requestDevServer({
-      repoId: repoId,
-      baseId: baseId,
+  try {
+    const {
+      ephemeralUrl,
+      devCommandRunning,
+      installCommandRunning,
+    } = await freestyle.requestDevServer({
+      repoId,
+      baseId,
     });
 
-  return {
-    ephemeralUrl,
-    devCommandRunning,
-    installCommandRunning,
-  };
+    return {
+      ephemeralUrl,
+      devCommandRunning,
+      installCommandRunning,
+    };
+  } catch (error) {
+    console.error("❌ Failed to request dev server:", error);
+    throw new Error("Failed to start dev server. Please check the logs.");
+  }
 }
