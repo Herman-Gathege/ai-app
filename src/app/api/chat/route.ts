@@ -64,7 +64,6 @@ export async function POST(req: Request) {
 
     const claude = openRouterClaude();
 
-
     if (!claude || !claude.chat) {
       console.error("❌ Claude model is not properly initialized.");
       return new NextResponse(
@@ -79,10 +78,18 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await streamText({
-      model: claude.chat,
+    // const { message }: { message: CoreMessage } = await req.json();
+    // const prompt = normalizeMessageContent(message.content);
+
+    const messages = [{ role: "user", content: prompt }];
+    console.log("🧪 About to call streamText with messages:", messages);
+
+    const result = await claude.chat.doStream({
       messages: [{ role: "user", content: prompt }],
-      maxTokens: 1024,
+    });
+    console.log("✅ Claude response received:", result);
+    return NextResponse.json({
+      output: result.content,
     });
 
     const encodedStream = new ReadableStream({

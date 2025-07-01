@@ -118,8 +118,31 @@ export const openRouterClaude = () => {
 
   return {
     chat: {
-      doStream: async ({ messages }) => {
-        return await wrapped.invoke({ messages });
+      doStream: async (params) => {
+        console.log("📨 doStream received:", params); // Log full input for debugging
+
+        // Destructure both
+        const { messages, prompt } = params;
+
+        // Fallback: try prompt if messages is missing or empty
+        const safeMessages =
+          Array.isArray(messages) && messages.length > 0
+            ? messages
+            : Array.isArray(prompt) && prompt.length > 0
+            ? prompt
+            : [];
+
+        if (!Array.isArray(safeMessages) || safeMessages.length === 0) {
+          console.error(
+            "❌ Missing or invalid messages array in invoke:",
+            safeMessages
+          );
+          throw new Error("Missing or invalid messages array");
+        }
+
+        console.log("✅ Valid messages to send:", safeMessages);
+
+        return await wrapped.invoke({ messages: safeMessages });
       },
     },
   };
