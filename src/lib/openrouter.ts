@@ -101,8 +101,20 @@ export const openRouterClaude = () => {
         }
 
         return {
-          type: "text",
-          content: json?.choices?.[0]?.message?.content ?? "No content",
+          id: "chatcmpl-" + Math.random().toString(36).substring(2),
+          object: "chat.completion",
+          created: Math.floor(Date.now() / 1000),
+          model: modelId,
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: "assistant",
+                content: json?.choices?.[0]?.message?.content ?? "No content",
+              },
+              finish_reason: "stop",
+            },
+          ],
         };
       },
     },

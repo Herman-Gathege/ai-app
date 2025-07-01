@@ -7,7 +7,8 @@ import { Markdown } from "./ui/markdown";
 import { ChangeEvent, useEffect } from "react";
 import { ChatContainer } from "./ui/chat-container";
 import { Message } from "ai";
-import { ToolMessage } from "./tools";
+// import { ToolMessage } from "./tools";
+// import { normalizeMessageContent } from "@/lib/utils";
 
 import { toast } from "sonner";
 
@@ -58,6 +59,8 @@ export default function Chat(props: {
       // 🔥 This will trigger if backend returns an error (like 500 or 403)
       onError: async (error) => {
         const err = error as { response?: Response }; // 👈 assert it has `.response`
+        console.error("🚨 Full error object:", error);
+
 
         try {
           const parsed = await err.response?.json();
@@ -73,9 +76,14 @@ export default function Chat(props: {
       },
 
       onFinish: async (assistantMessage: Message) => {
+        console.log("💬 Assistant response finished:", assistantMessage);
+
+        console.log("🧪 Message content:", assistantMessage?.content);
         const userMessage = messages.at(-2);
 
         if (!userMessage || !assistantMessage) return;
+
+        append(assistantMessage);
 
         try {
           const res = await fetch(`/api/messages/${props.appId}`, {
@@ -170,7 +178,31 @@ export default function Chat(props: {
   );
 }
 
+// function MessageBody({ message }: { message: Message }) {
+//   const raw = normalizeMessageContent(message.content);
+
+//   if (raw.trim() !== "") {
+//     return (
+//       <div className="mb-4">
+//         <Markdown className="prose prose-sm dark:prose-invert max-w-none">
+//           {raw}
+//         </Markdown>
+//       </div>
+//     );
+//   }
+//   console.warn("🧪 Unexpected message format:", message);
+//   console.log("📝 Message received:", message);
+
+//   return (
+//     <div>
+//       <p className="text-gray-500">Something went wrong</p>
+//     </div>
+//   );
+// }
+
 function MessageBody({ message }: { message: Message }) {
+  console.log("🧾 Message rendering:", message);
+
   if (typeof message.content === "string" && message.content.trim() !== "") {
     return (
       <div className="mb-4">
@@ -180,12 +212,12 @@ function MessageBody({ message }: { message: Message }) {
       </div>
     );
   }
-  console.log("📝 Message received:", message);
-
 
   return (
     <div>
-      <p className="text-gray-500">Something went wrong</p>
+      <pre className="text-xs text-gray-500">{JSON.stringify(message, null, 2)}</pre>
     </div>
   );
 }
+
+
