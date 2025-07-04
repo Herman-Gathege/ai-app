@@ -1,6 +1,6 @@
 "use server";
 
-import { getUser } from "@/auth/stack-auth";
+import { getUser } from "@/auth/stack";
 import { appsTable, appUsers } from "@/db/schema";
 import { db } from "@/lib/db";
 import { desc, eq } from "drizzle-orm";

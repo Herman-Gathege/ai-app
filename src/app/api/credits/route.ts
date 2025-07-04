@@ -1,5 +1,5 @@
 // src/app/api/credits/route.ts
-import { getUser } from "@/auth/stack-auth";
+import { getUser } from "@/auth/stack";
 import { db } from "@/lib/db";
 import { usersTable } from "@/db/schema";
 import { eq } from "drizzle-orm";

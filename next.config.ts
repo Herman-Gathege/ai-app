@@ -1,3 +1,4 @@
+// // File: next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -9,13 +10,9 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    serverActions: {},
+    viewTransition: true,
   },
   devIndicators: false,
-  productionBrowserSourceMaps: false,
-  env: {
-    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
-  },
 };
 
 export default nextConfig;

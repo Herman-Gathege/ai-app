@@ -16,18 +16,18 @@ export async function checkAndConsumeCredit(userId: string) {
   }
 
   const now = new Date();
-  const lastReset = new Date(user.lastCreditReset);
+  const latestRefill = new Date(user.lastRefillAt);
   let shouldReset = false;
   let creditLimit = 0;
 
   switch (user.plan) {
     case "free":
-      shouldReset = isBefore(lastReset, subDays(now, 1)); // daily reset
+      shouldReset = isBefore(latestRefill, subDays(now, 1)); // daily reset
       creditLimit = 5;
       break;
     case "pro":
     case "team":
-      shouldReset = isBefore(lastReset, subMonths(now, 1)); // monthly reset
+      shouldReset = isBefore(latestRefill, subMonths(now, 1)); // monthly reset
       creditLimit = 100;
       break;
     default:
@@ -40,7 +40,7 @@ export async function checkAndConsumeCredit(userId: string) {
       .update(usersTable)
       .set({
         creditsRemaining: creditLimit,
-        lastCreditReset: now,
+        lastRefillAt: now,
       })
       .where(eq(usersTable.id, userId));
 
@@ -50,6 +50,13 @@ export async function checkAndConsumeCredit(userId: string) {
   if (user.creditsRemaining <= 0) {
     throw new Error("No credits remaining. Please upgrade your plan.");
   }
+
+  console.log("💳 Credit check:", {
+    userId,
+    plan: user.plan,
+    creditsRemaining: user.creditsRemaining,
+    shouldReset,
+  });
 
   // 💳 Deduct 1 credit
   await db
@@ -64,12 +71,8 @@ export async function decrementUserCredits(userId: string): Promise<boolean> {
     .update(usersTable)
     .set({ creditsRemaining: sql`${usersTable.creditsRemaining} - 1` })
     .where(
-      and(
-        eq(usersTable.id, userId),
-        sql`${usersTable.creditsRemaining} > 0`
-      )
+      and(eq(usersTable.id, userId), sql`${usersTable.creditsRemaining} > 0`)
     );
 
   return (result.rowCount ?? 0) > 0; // ✅ Type-safe check
 }
-

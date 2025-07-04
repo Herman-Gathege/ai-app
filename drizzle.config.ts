@@ -1,4 +1,3 @@
-// This file is used to configure Drizzle ORM for database migrations and schema management.
 import "dotenv/config";
 import { defineConfig } from "drizzle-kit";
 

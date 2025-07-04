@@ -7,6 +7,7 @@ import CreditTracker from "@/components/CreditTracker";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import LogoSvg from "@/logo.svg";
+import { Pointer } from "lucide-react";
 
 export default function Header() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function Header() {
           size="sm"
           onClick={() => router.push("/pricing")}
           className="text-xs"
+          style={{  cursor: "Pointer" }}
         >
           Upgrade
         </Button>

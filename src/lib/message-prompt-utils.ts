@@ -1,4 +1,4 @@
-// source: src/lib/message-prompt-utils.ts
+// src/lib/message-prompt-utils.ts
 import { Message } from "ai";
 
 // Number of recent messages to keep intact

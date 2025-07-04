@@ -1,5 +1,5 @@
-// src/app/handler/[...stack]/page.tsx
-import { stackServerApp } from "@/auth/stack-auth";
+// // src/app/handler/[...stack]/page.tsx
+import { stackServerApp } from "@/auth/stack";
 import { StackHandler } from "@stackframe/stack";
 
 export default function Handler(props: unknown) {

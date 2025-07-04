@@ -1,161 +1,207 @@
-import { customProvider, wrapLanguageModel } from "ai";
+// // // src/lib/openrouter.ts
+// import { OpenAI } from "openai";
+// // import { LanguageModelV1 } from "@ai-sdk/provider";
+// // import { anthropic } from "@ai-sdk/anthropic";
 
-export const openRouterClaude = () => {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  const modelId = "anthropic/claude-3-opus";
-  const providerId = "openrouter";
+// // Create OpenRouter client
+// const openRouterClient = new OpenAI({
+//   apiKey: process.env.OPENROUTER_API_KEY || "",
+//   baseURL: "https://openrouter.ai/api/v1",
+// });
 
-  if (!apiKey) {
-    console.error("❌ Missing OPENROUTER_API_KEY");
-    return null;
-  }
+// // This function creates a wrapper around the normal anthropic function
+// // We'll use the original anthropic function to create a model, but override its methods
+// export function openRouterClaude(modelName: string) {
+//   // Use the original anthropic model creator but we'll intercept its methods
+//   const originalModel = anthropic("claude-3-7-sonnet-20250219");
 
-  const provider = customProvider({
-    id: providerId,
-    models: [
-      {
-        id: modelId,
-        type: "chat",
-        handleChat: async ({ messages }) => {
-          if (!Array.isArray(messages) || messages.length === 0) {
-            console.error("❌ Missing or invalid messages array in handleChat");
-            throw new Error("Missing or invalid messages array");
-          }
+//   // Create a proxy that will intercept calls to the model methods
+//   return new Proxy(originalModel, {
+//     get(target, prop) {
+//       // Special case for generateContent which is the main method used by Agent
+//       if (prop === 'generateContent') {
+//         return async function(prompt: any) {
+//           try {
+//             // Convert the AI SDK format to OpenRouter format
+//             const messages = Array.isArray(prompt)
+//               ? prompt.map((msg: any) => ({
+//                   role: msg.role,
+//                   content: typeof msg.content === 'string'
+//                     ? msg.content
+//                     : msg.content.map((part: any) => {
+//                         if (part.type === 'text') return { type: 'text', text: part.text };
+//                         return part;
+//                       })
+//                 }))
+//               : [{ role: "user", content: prompt }];
 
-          console.log(
-            "📨 Sending messages to OpenRouter (handleChat):",
-            messages
-          );
+//             // Call OpenRouter API
+//             const response = await openRouterClient.chat.completions.create({
+//               model: "anthropic/claude-3-opus-20240229", // Using Claude via OpenRouter
+//               messages,
+//               temperature: 0.7,
+//               max_tokens: 4096,
+//             });
 
-          const res = await fetch(
-            "https://openrouter.ai/api/v1/chat/completions",
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: modelId,
-                messages,
-                temperature: 0.7,
-              }),
-            }
-          );
+//             // Return in the format expected by the AI SDK
+//             return {
+//               content: response.choices[0]?.message?.content || "",
+//             };
+//           } catch (error) {
+//             console.error("Error calling OpenRouter:", error);
+//             throw error;
+//           }
+//         };
+//       }
 
-          const json = await res.json();
+//       // Return the original function for any other property
+//       return target[prop as keyof typeof target];
+//     }
+//   });
+// }
 
-          if (!res.ok) {
-            console.error("❌ OpenRouter API Error (handleChat):", json);
-            throw new Error(
-              json?.error?.message || "Unknown OpenRouter API error"
-            );
-          }
+// import { OpenAI } from "openai";
 
-          return {
-            type: "text",
-            content: json?.choices?.[0]?.message?.content ?? "No content",
-          };
-        },
-      },
-    ],
-  });
+// const openRouterClient = new OpenAI({
+//   apiKey: process.env.OPENROUTER_API_KEY || "",
+//   baseURL: "https://openrouter.ai/api/v1",
+// });
 
-  const wrapped = wrapLanguageModel({
-    modelId,
-    providerId,
-    middleware: [],
-    model: {
-      invoke: async ({ messages }) => {
-        if (!Array.isArray(messages) || messages.length === 0) {
-          console.error(
-            "❌ Missing or invalid messages array in invoke:",
-            messages
-          );
-          throw new Error("Missing or invalid messages array");
-        }
+// export function openRouterClaude(modelName: string) {
+//   return {
+//     async generateContent(prompt: any) {
+//       console.log(
+//         "🧠 [Claude] incoming prompt:",
+//         JSON.stringify(prompt, null, 2)
+//       );
 
-        console.log("📨 Sending messages to OpenRouter (invoke):", messages);
+//       const messages = Array.isArray(prompt)
+//         ? prompt.map((msg: any) => ({
+//             role: msg.role,
+//             content:
+//               typeof msg.content === "string"
+//                 ? msg.content
+//                 : msg.content.map((part: any) => part.text).join(""),
+//           }))
+//         : [{ role: "user", content: prompt }];
 
-        const res = await fetch(
-          "https://openrouter.ai/api/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: modelId,
-              messages,
-              temperature: 0.7,
-            }),
-          }
-        );
+//       const response = await openRouterClient.chat.completions.create({
+//         model: modelName,
+//         messages,
+//         temperature: 0.7,
+//         max_tokens: 4096,
+//       });
+//       console.log("🧪 Claude response:", JSON.stringify(response, null, 2));
 
-        const json = await res.json();
+//       if (!response.choices?.[0]?.message?.content) {
+//         throw new Error("Claude returned no content.");
+//       }
 
-        if (!res.ok) {
-          console.error("❌ OpenRouter API Error (invoke):", json);
-          throw new Error(json?.error?.message || "Unknown error");
-        }
+//       return {
+//         content: [
+//           {
+//             role: "assistant",
+//             name: "Claude",
+//             content: [
+//               {
+//                 type: "text",
+//                 text: response.choices?.[0]?.message?.content || "",
+//               },
+//             ],
+//             tool_calls: [],
+//             tool_results: [],
+//             finish_reason: response.choices?.[0]?.finish_reason || "stop",
+//           },
+//         ],
+//         usage: {
+//           prompt_tokens: response.usage?.prompt_tokens || 0,
+//           completion_tokens: response.usage?.completion_tokens || 0,
+//           total_tokens: response.usage?.total_tokens || 0,
+//         },
+//       };
+//     },
+//   };
+// }
+
+// src/lib/openrouter.ts
+import { OpenAI } from "openai";
+
+const openRouterClient = new OpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY || "",
+  baseURL: "https://openrouter.ai/api/v1",
+});
+
+export function openRouterClaude(modelName: string) {
+  return {
+    async generateContent(prompt: {
+      messages: { role: string; content: any }[];
+      system?: string;
+      tools?: any[];
+      tool_results?: any[];
+    }) {
+      console.log(
+        "🧠 Claude incoming prompt:",
+        JSON.stringify(prompt, null, 2)
+      );
+
+      const messages = prompt.messages.map((msg) => {
+        const textContent = Array.isArray(msg.content)
+          ? msg.content.map((c: any) => c?.text || "").join("")
+          : msg.content ?? "";
 
         return {
-          id: "chatcmpl-" + Math.random().toString(36).substring(2),
-          object: "chat.completion",
-          created: Math.floor(Date.now() / 1000),
-          model: modelId,
-          choices: [
-            {
-              index: 0,
-              message: {
-                role: "assistant",
-                content: json?.choices?.[0]?.message?.content ?? "No content",
-              },
-              finish_reason: "stop",
-            },
-          ],
+          role: msg.role,
+          content: textContent,
         };
-      },
-    },
-  });
+      });
 
-  if (!wrapped) {
-    console.error(`🛑 wrapLanguageModel returned undefined for ${modelId}`);
-    return null;
-  }
+      const response = await openRouterClient.chat.completions.create({
+        model: modelName,
+        messages,
+        temperature: 0.7,
+        max_tokens: 4096,
+      });
 
-  console.log(`✅ wrapLanguageModel success for ${modelId}`);
-  console.log(`🧠 Claude model initialized successfully`);
+      // const content = response.choices?.[0]?.message?.content;
+      // if (!content) throw new Error("Claude returned no content");
 
-  return {
-    chat: {
-      doStream: async (params) => {
-        console.log("📨 doStream received:", params); // Log full input for debugging
+      // // ✅ Return plain "message" that works with useChat
+      // return {
+      //   messages: [
+      //     {
+      //       id: "claude-fallback-" + crypto.randomUUID(),
+      //       role: "assistant",
+      //       content, // <-- plain string
+      //     },
+      //   ],
+      //   usage: {
+      //     prompt_tokens: response.usage?.prompt_tokens || 0,
+      //     completion_tokens: response.usage?.completion_tokens || 0,
+      //     total_tokens: response.usage?.total_tokens || 0,
+      //   },
+      // };
 
-        // Destructure both
-        const { messages, prompt } = params;
+      const content =
+        response.choices?.[0]?.message?.content ??
+        "⚠️ Claude returned no content";
 
-        // Fallback: try prompt if messages is missing or empty
-        const safeMessages =
-          Array.isArray(messages) && messages.length > 0
-            ? messages
-            : Array.isArray(prompt) && prompt.length > 0
-            ? prompt
-            : [];
+        console.log("🧠 Final Claude content:", content);
 
-        if (!Array.isArray(safeMessages) || safeMessages.length === 0) {
-          console.error(
-            "❌ Missing or invalid messages array in invoke:",
-            safeMessages
-          );
-          throw new Error("Missing or invalid messages array");
-        }
 
-        console.log("✅ Valid messages to send:", safeMessages);
-
-        return await wrapped.invoke({ messages: safeMessages });
-      },
+      return {
+        messages: [
+          {
+            id: "claude-fallback-" + crypto.randomUUID(),
+            role: "assistant",
+            parts: [{ type: "text", text: content }],
+          },
+        ],
+        usage: {
+          prompt_tokens: response.usage?.prompt_tokens || 0,
+          completion_tokens: response.usage?.completion_tokens || 0,
+          total_tokens: response.usage?.total_tokens || 0,
+        },
+      };
     },
   };
-};
+}

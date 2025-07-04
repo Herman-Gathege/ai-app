@@ -10,7 +10,10 @@ export default function CreditTracker() {
     const fetchCredits = async () => {
       try {
         console.log("Fetching /api/credits...");
-        const res = await fetch("/api/credits", { method: "GET", cache: "no-store" });
+        const res = await fetch("/api/credits", {
+          method: "GET",
+          cache: "no-store",
+        });
 
         if (!res.ok) throw new Error("API error: " + res.status);
         const data = await res.json();
@@ -33,13 +36,21 @@ export default function CreditTracker() {
       console.log("No credits found yet");
       hasLogged.current = true;
     }
-    return <div className="text-red-500 text-sm">sign in to see your free credits</div>;
+    return (
+      <div className="text-red-500 text-sm">
+        sign in to see your free credits
+      </div>
+    );
   }
 
-  const percentage = (credits.creditsRemaining / maxCredits) * 100;
+  const percentage =
+    maxCredits > 0 ? (credits.creditsRemaining / maxCredits) * 100 : 0;
 
   return (
-    <div className="p-2 bg-white dark:bg-zinc-900 rounded-xl border w-fit text-sm shadow">
+    <div
+      className="p-2 bg-white dark:bg-zinc-900 rounded-xl border w-fit text-sm shadow"
+      title={`${credits.creditsRemaining} credits left on ${credits.plan} plan`}
+    >
       <div className="mb-1 font-semibold">
         Credits: {credits.creditsRemaining} / {maxCredits} ({credits.plan})
       </div>

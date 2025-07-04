@@ -1,372 +1,265 @@
-// // src/app/api/chat/route.ts
-// import { getApp } from "@/actions/get-app";
-// import { freestyle } from "@/lib/freestyle";
-// import { getAppIdFromHeaders } from "@/lib/utils";
-// import { CoreMessage } from "@mastra/core";
-// import { getUser } from "@/auth/stack-auth";
-// import { checkAndConsumeCredit } from "@/lib/credits";
-// import { setStream, getStream } from "@/lib/streams";
-// import { openRouterClaude } from "@/lib/openrouter";
-// import { streamText } from "ai";
-// import { EventEmitter } from "events";
-// import { NextResponse } from "next/server";
-
-// // ✅ Increase default event listener limit to avoid memory leak warnings
-// EventEmitter.defaultMaxListeners = 1000;
-
-// // ✅ Normalize message content for consistent handling
-// function normalizeMessageContent(content: CoreMessage["content"]): string {
-//   if (typeof content === "string") return content;
-
-//   if (Array.isArray(content)) {
-//     return content
-//       .map((part) => {
-//         if (typeof part === "string") return part;
-//         if ("text" in part) return part.text;
-//         if ("content" in part) return part.content;
-//         return "";
-//       })
-//       .join("\n");
-//   }
-
-//   if ("text" in content) return content.text;
-//   if ("content" in content) return content.content;
-
-//   return "";
-// }
-
-// // ✅ POST: Handle prompt and stream Claude's response
-// export async function POST(req: Request) {
-//   try {
-//     const appId = getAppIdFromHeaders(req);
-//     if (!appId) {
-//       return new NextResponse("Missing App Id header", { status: 400 });
-//     }
-
-//     const app = await getApp(appId);
-//     if (!app) {
-//       return new NextResponse("App not found", { status: 404 });
-//     }
-
-//     const { mcpEphemeralUrl } = await freestyle.requestDevServer({
-//       repoId: app.info.gitRepo,
-//       baseId: app.info.baseId,
-//     });
-
-//     const { message }: { message: CoreMessage } = await req.json();
-//     const prompt = normalizeMessageContent(message.content);
-//     if (!prompt || prompt.trim() === "") {
-//       return new NextResponse("Prompt cannot be empty", { status: 400 });
-//     }
-
-//     const { userId } = await getUser();
-//     await checkAndConsumeCredit(userId);
-
-//     const claude = openRouterClaude();
-
-//     if (!claude || !claude.chat) {
-//       console.error("❌ Claude model is not properly initialized.");
-//       return new NextResponse(
-//         JSON.stringify({
-//           error: "Claude model is unavailable. Please try again later.",
-//           code: "MODEL_INIT_ERROR",
-//         }),
-//         {
-//           status: 500,
-//           headers: { "Content-Type": "application/json" },
-//         }
-//       );
-//     }
-
-//     // const { message }: { message: CoreMessage } = await req.json();
-//     // const prompt = normalizeMessageContent(message.content);
-
-//     const messages = [{ role: "user", content: prompt }];
-//     console.log("🧪 About to call streamText with messages:", messages);
-
-//     const result = await claude.chat.doStream({
-//       messages: [{ role: "user", content: prompt }],
-//     });
-//     console.log("✅ Claude response received:", result);
-
-//     // const text = result?.content || "No content"; // fallback just in case
-
-//     // const encodedStream = new ReadableStream({
-//     //   start(controller) {
-//     //     controller.enqueue(new TextEncoder().encode(text));
-//     //     controller.close();
-//     //   },
-//     // });
-
-//     // return new Response(encodedStream, {
-//     //   status: 200,
-//     //   headers: {
-//     //     "Content-Type": "text/plain; charset=utf-8",
-//     //     "Cache-Control": "no-cache",
-//     //     Connection: "keep-alive",
-//     //   },
-//     // });
-
-//     const encodedStream = new ReadableStream({
-//       start(controller) {
-//         const text = result?.content || "No content";
-//         const payload = {
-//           id: crypto.randomUUID(),
-//           role: "assistant",
-//           content: text,
-//         };
-
-//         controller.enqueue(
-//           new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`)
-//         );
-//         controller.close();
-//       },
-//     });
-
-//     return new Response(encodedStream, {
-//       status: 200,
-//       headers: {
-//         "Content-Type": "text/event-stream",
-//         "Cache-Control": "no-cache",
-//         Connection: "keep-alive",
-//       },
-//     });
-
-//     // const encodedStream = new ReadableStream({
-//     //   async start(controller) {
-//     //     const reader = result.baseStream.getReader();
-//     //     const encoder = new TextEncoder();
-
-//     //     while (true) {
-//     //       const { done, value } = await reader.read();
-//     //       if (done) break;
-
-//     //       console.log("📦 Stream chunk value:", value);
-
-//     //       if (typeof value === "object" && value?.text) {
-//     //         controller.enqueue(encoder.encode(value.text));
-//     //       }
-//     //     }
-
-//     //     controller.close();
-//     //   },
-//     // });
-
-//     // await setStream(appId, result.baseStream, prompt);
-
-//     // return new Response(encodedStream, {
-//     //   status: 200,
-//     //   headers: {
-//     //     "Content-Type": "text/plain; charset=utf-8",
-//     //     "Cache-Control": "no-cache",
-//     //     Connection: "keep-alive",
-//     //   },
-//     // });
-//   } catch (error) {
-//     console.error("❌ POST /api/chat failed:", error);
-
-//     if (
-//       error instanceof Error &&
-//       error.message.includes("No credits remaining")
-//     ) {
-//       return new NextResponse(
-//         JSON.stringify({
-//           error: "No credits remaining. Please upgrade your plan.",
-//           code: "NO_CREDITS",
-//         }),
-//         {
-//           status: 403,
-//           headers: { "Content-Type": "application/json" },
-//         }
-//       );
-//     }
-
-//     return new NextResponse(
-//       JSON.stringify({
-//         error: "Internal Server Error. Please try again.",
-//       }),
-//       {
-//         status: 500,
-//         headers: { "Content-Type": "application/json" },
-//       }
-//     );
-//   }
-// }
-
-// // ✅ GET: Return recent stream for fallback or debugging
-// export async function GET(req: Request) {
-//   const appId = getAppIdFromHeaders(req);
-//   if (!appId) {
-//     return new NextResponse("Missing App Id header", { status: 400 });
-//   }
-
-//   const streamData = await getStream(appId);
-//   if (!streamData) {
-//     return new NextResponse("No stream found for this app", { status: 404 });
-//   }
-
-//   return NextResponse.json({
-//     stream: {
-//       prompt: streamData.prompt,
-//     },
-//   });
-// }
-
+// src/app/api/chat/route.ts
+import { getUser } from "@/auth/stack";
+import { checkAndConsumeCredit } from "@/lib/credits";
 import { getApp } from "@/actions/get-app";
 import { freestyle } from "@/lib/freestyle";
 import { getAppIdFromHeaders } from "@/lib/utils";
+import { MCPClient } from "@mastra/mcp";
+import { builderAgent } from "@/mastra/agents/builder";
+import { deleteStream, getStream, setStream } from "@/lib/streams";
 import { CoreMessage } from "@mastra/core";
-import { getUser } from "@/auth/stack-auth";
-import { checkAndConsumeCredit } from "@/lib/credits";
-import { getStream } from "@/lib/streams";
 import { openRouterClaude } from "@/lib/openrouter";
-import { streamText } from "ai";
-import type { LanguageModelV1, StreamPart } from "ai";
 import { EventEmitter } from "events";
-import { NextResponse } from "next/server";
 
-// ✅ Prevent memory leak warnings
 EventEmitter.defaultMaxListeners = 1000;
 
-// ✅ Normalize message content
-function normalizeMessageContent(content: CoreMessage["content"]): string {
-  if (typeof content === "string") return content;
-
-  if (Array.isArray(content)) {
-    return content
-      .map((part) => {
-        if (typeof part === "string") return part;
-        if ("text" in part) return part.text;
-        if ("content" in part) return part.content;
-        return "";
-      })
-      .join("\n");
+// Wait for dev server
+async function waitForServer(url: string, retries = 5, delayMs = 2000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, { method: "HEAD" });
+      if (res.ok) return true;
+    } catch (_) {}
+    await new Promise((r) => setTimeout(r, delayMs));
   }
-
-  if ("text" in content) return content.text;
-  if ("content" in content) return content.content;
-
-  return "";
+  return false;
 }
 
-// ✅ POST: stream Claude response to frontend using ai-sdk
 export async function POST(req: Request) {
+  const appId = getAppIdFromHeaders(req);
+  if (!appId) return new Response("Missing App Id header", { status: 400 });
+
+  const app = await getApp(appId);
+  if (!app) return new Response("App not found", { status: 404 });
+
+  const user = await getUser();
+  if (!user) return new Response("Unauthorized", { status: 401 });
+
   try {
-    const appId = getAppIdFromHeaders(req);
-    if (!appId)
-      return new NextResponse("Missing App Id header", { status: 400 });
+    await checkAndConsumeCredit(user.userId);
+  } catch (err) {
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
+      status: 402,
+      headers: { "Content-Type": "application/json" },
+    });
+    // 402: Payment Required
+  }
 
-    const app = await getApp(appId);
-    if (!app) return new NextResponse("App not found", { status: 404 });
+  const existingStream = await getStream(appId);
+  if (existingStream) {
+    const [stream1, stream2] = existingStream.readable.tee();
+    await setStream(appId, stream2, existingStream.prompt);
+    return new Response(stream1, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+  }
 
-    await freestyle.requestDevServer({
-      repoId: app.info.gitRepo,
-      baseId: app.info.baseId,
+  const { mcpEphemeralUrl, ephemeralUrl } = await freestyle.requestDevServer({
+    repoId: app.info.gitRepo,
+    baseId: app.info.baseId,
+  });
+
+  const { message }: { message: CoreMessage } = await req.json();
+  const promptText =
+    typeof message.content === "string"
+      ? message.content
+      : Array.isArray(message.content)
+      ? message.content.map((c: any) => c.text).join("")
+      : "";
+
+  const rootStream = new TransformStream();
+  const [stream1, stream2] = rootStream.readable.tee();
+  await setStream(appId, stream2, promptText);
+
+  const encoder = new TextEncoder();
+  const writer = rootStream.writable.getWriter();
+
+  let toolsets: any[] = [];
+  let mcp: MCPClient;
+
+  try {
+    const devReady = await waitForServer(mcpEphemeralUrl);
+    if (!devReady) throw new Error("Dev server not reachable");
+
+    mcp = new MCPClient({
+      id: crypto.randomUUID(),
+      servers: {
+        dev_server: { url: new URL(mcpEphemeralUrl) },
+      },
     });
 
-    const { message }: { message: CoreMessage } = await req.json();
-    const prompt = normalizeMessageContent(message.content);
-    if (!prompt.trim()) {
-      return new NextResponse("Prompt cannot be empty", { status: 400 });
-    }
+    toolsets = await mcp.getToolsets();
 
-    const { userId } = await getUser();
-    await checkAndConsumeCredit(userId);
-
-    const claude = openRouterClaude();
-    if (!claude?.chat) {
-      return new NextResponse(
-        JSON.stringify({
-          error: "Claude model is unavailable. Please try again later.",
-          code: "MODEL_INIT_ERROR",
-        }),
+    const safePrompt = {
+      messages: [
         {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const wrappedClaude = {
-      modelId: "claude-3-opus",
-      provider: "openrouter",
-      specificationVersion: "v1",
-      defaultObjectGenerationMode: "regular" as const,
-      async doGenerate(settings: any) {
-        return claude.chat.doStream(settings);
-      },
-      async doStream(settings: any) {
-        return claude.chat.doStream(settings);
-      },
+          role: "user",
+          content: promptText,
+        },
+      ],
+      system: "",
+      tools: [],
+      tool_results: [],
     };
 
-    // // 🧠 Stream Claude response
-    // const streamResult = await streamText({
-    //   model: wrappedClaude,
-    //   messages: [{ role: "user", content: prompt }],
-    // });
-
-    // // ✅ Wrap stream result in a proper Response
-    // return new Response(streamResult.toReadableStream(), {
-    //   status: 200,
-    //   headers: {
-    //     "Content-Type": "text/event-stream",
-    //     "Cache-Control": "no-cache",
-    //     "Connection": "keep-alive",
-    //   },
-    // });
-    return await streamText({
-      model: wrappedClaude,
-      messages: [{ role: "user", content: prompt }],
+    const stream = await builderAgent.stream(safePrompt, {
+      threadId: appId,
+      resourceId: appId,
+      maxSteps: 100,
+      maxRetries: 0,
+      maxTokens: 64000,
+      toolsets,
+      toolCallStreaming: true,
+      onError: async (err) => {
+        await mcp.disconnect();
+        console.error("❌ Builder agent error:", err);
+      },
+      onFinish: async () => {
+        await mcp.disconnect();
+        await writer.close();
+        deleteStream(appId);
+        console.log("✅ Builder stream finished");
+      },
     });
 
-    
-  } catch (error) {
-    console.error("❌ POST /api/chat failed:", error);
+    // const dataStream = stream.toDataStream();
 
-    if (
-      error instanceof Error &&
-      error.message.includes("No credits remaining")
-    ) {
-      return new NextResponse(
-        JSON.stringify({
-          error: "No credits remaining. Please upgrade your plan.",
-          code: "NO_CREDITS",
-        }),
-        {
-          status: 403,
-          headers: { "Content-Type": "application/json" },
+    // dataStream.pipeTo(rootStream.writable, { preventClose: true });
+
+    const dataStream = stream.toDataStream();
+    const reader = dataStream.getReader();
+
+    async function pump() {
+      let started = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const text = new TextDecoder().decode(value);
+
+        if (!started) {
+          // Initial assistant shell
+          await writer.write(
+            encoder.encode(
+              `data: ${JSON.stringify({ role: "assistant", parts: [] })}\n\n`
+            )
+          );
+          started = true;
         }
-      );
+
+        // Stream text chunks as `type: text` parts
+        await writer.write(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: "text", content: text })}\n\n`
+          )
+        );
+      }
+      await writer.ready;
+      await new Promise((res) => setTimeout(res, 30));
+
+      await writer.write(encoder.encode(`data: [DONE]\n\n`));
+      await writer.close();
+      await mcp.disconnect();
+      deleteStream(appId);
     }
 
-    return new NextResponse(
-      JSON.stringify({
-        error: "Internal Server Error. Please try again.",
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
+    pump();
+  } catch (err) {
+    console.warn("⚠️ Falling back to Claude:", (err as Error).message);
+
+    try {
+      const claude = openRouterClaude("anthropic/claude-3-sonnet");
+      const response = await claude.generateContent({
+        messages: [
+          {
+            role: "user",
+            content: promptText,
+          },
+        ],
+      });
+
+      let reply = response.messages?.[0]?.content;
+      // console.log("🪂 Claude raw reply:", reply);
+
+      let finalText = "";
+
+      if (Array.isArray(reply)) {
+        for (const part of reply) {
+          if (part.type === "text") {
+            finalText += part.text;
+          }
+        }
+      } else if (typeof reply === "string") {
+        finalText = reply;
       }
-    );
+
+      console.log("🧠 Final Claude content:", finalText);
+
+      // ✅ Emit assistant starter
+      await writer.write(
+        encoder.encode(
+          `data: ${JSON.stringify({ role: "assistant", parts: [] })}\n\n`
+        )
+      );
+
+      await writer.ready;
+
+      // ✅ Stream line-by-line
+      for (const line of finalText.split("\n")) {
+        await writer.write(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: "text", content: line })}\n\n`
+          )
+        );
+        await writer.ready;
+        await new Promise((res) => setTimeout(res, 30)); // simulate chunking
+      }
+
+      await writer.write(encoder.encode(`data: [DONE]\n\n`));
+      await writer.ready;
+      await writer.close();
+    } catch (fallbackError) {
+      console.error("❌ Claude fallback also failed:", fallbackError);
+
+      await writer.write(
+        encoder.encode(
+          `data: ${JSON.stringify({
+            role: "assistant",
+            parts: [{ type: "text", text: "Something went wrong." }],
+          })}\n\n`
+        )
+      );
+
+      await writer.write(encoder.encode(`data: [DONE]\n\n`));
+      await writer.close();
+    }
   }
+
+  return new Response(stream1, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }
 
-// ✅ GET: Return fallback stream data if available
 export async function GET(req: Request) {
   const appId = getAppIdFromHeaders(req);
   if (!appId) {
-    return new NextResponse("Missing App Id header", { status: 400 });
+    return new Response("Missing App Id header", { status: 400 });
   }
 
-  const streamData = await getStream(appId);
-  if (!streamData) {
-    return new NextResponse("No stream found for this app", { status: 404 });
-  }
-
-  return NextResponse.json({
-    stream: {
-      prompt: streamData.prompt,
-    },
-  });
+  return new Response(
+    JSON.stringify({
+      stream: streams[appId] && {
+        prompt: streams[appId].prompt,
+      },
+    })
+  );
 }

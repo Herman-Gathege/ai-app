@@ -1,7 +1,7 @@
 // src/actions/create-app.ts
 "use server";
 
-import { getUser } from "@/auth/stack-auth";
+import { getUser } from "@/auth/stack";
 import { appsTable, appUsers } from "@/db/schema";
 import { db } from "@/lib/db";
 import { freestyle } from "@/lib/freestyle";
@@ -15,9 +15,6 @@ export async function createApp({
   baseId: string;
 }) {
   const user = await getUser();
-  if (!user) {
-    throw new Error("❌ User not authenticated");
-  }
 
   console.time("create git repo");
   const repo = await freestyle
@@ -39,16 +36,26 @@ export async function createApp({
     })
     .catch((e) => {
       console.error("Error creating git repository:", JSON.stringify(e));
-      console.timeEnd("create git repo");
       throw new Error("Failed to create git repository");
     });
 
   console.log(repo);
-  await freestyle.grantGitPermission({
-    identityId: user.freestyleIdentity,
-    repoId: repo.repoId,
-    permission: "write",
-  });
+  try {
+    await freestyle.grantGitPermission({
+      identityId: user.freestyleIdentity,
+      repoId: repo.repoId,
+      permission: "write",
+    });
+  } catch (err) {
+    console.error("❌ Failed to grant Git permission", {
+      identityId: user.freestyleIdentity,
+      repoId: repo.repoId,
+      error: err,
+    });
+
+    throw err; // optional: rethrow or fallback
+  }
+
   console.timeEnd("create git repo");
 
   // remapping baseIds because we don't have base image for expo yet

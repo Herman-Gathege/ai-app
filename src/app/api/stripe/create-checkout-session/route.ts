@@ -1,6 +1,6 @@
 // src/app/api/stripe/create-checkout-session/route.ts
 import { stripe } from "@/lib/stripe";
-import { getUser } from "@/auth/stack-auth";
+import { getUser } from "@/auth/stack";
 
 export async function POST(request: Request) {
   try {

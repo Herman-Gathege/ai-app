@@ -1,6 +1,4 @@
-// src/db/schema.ts
-// This file defines the database schema using Drizzle ORM for a Next.js application.
-// It includes tables for apps, app users, messages, app deployments, and users.
+// // src/db/schema.ts
 import {
   pgTable,
   text,
@@ -8,10 +6,8 @@ import {
   uuid,
   json,
   pgEnum,
+  integer,
 } from "drizzle-orm/pg-core";
-
-import { integer } from "drizzle-orm/pg-core";
-
 
 import type { Message } from "ai";
 
@@ -61,12 +57,11 @@ export const appDeployments = pgTable("app_deployments", {
   commit: text("commit").notNull(), // sha of the commit
 });
 
-export const planEnum = pgEnum("plan_type", ["free", "pro", "team"]);
+export const userPlans = pgEnum("user_plan", ["free", "pro", "team"]);
 
 export const usersTable = pgTable("users", {
-  id: text("id").primaryKey(), // This matches the user ID from Stack Auth
-  plan: planEnum("plan").notNull().default("free"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  id: text("id").primaryKey(), // comes from Stack auth
+  plan: userPlans("plan").notNull().default("free"),
   creditsRemaining: integer("credits_remaining").notNull().default(5),
-  lastCreditReset: timestamp("last_credit_reset").notNull().defaultNow(),
+  lastRefillAt: timestamp("last_refill_at").notNull().defaultNow(), // optional: useful for daily refill checks
 });
